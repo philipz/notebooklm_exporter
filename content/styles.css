@@ -1,0 +1,80 @@
+/**
+ * NotebookLM Markdown Exporter - Styles
+ */
+
+.notebooklm-export-button {
+  /* Positioning */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 12px 0;
+  padding: 10px 16px;
+
+  /* Appearance */
+  background: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Interaction */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
+.notebooklm-export-button:hover:not(:disabled) {
+  background: #1557b0;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+  transform: translateY(-1px);
+}
+
+.notebooklm-export-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
+.notebooklm-export-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Success state */
+.notebooklm-export-button.success {
+  background: #34a853;
+}
+
+.notebooklm-export-button.success:hover {
+  background: #2d8e47;
+}
+
+/* Error state */
+.notebooklm-export-button.error {
+  background: #ea4335;
+  font-size: 12px;
+  padding: 10px 12px;
+}
+
+.notebooklm-export-button.error:hover {
+  background: #d33828;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .notebooklm-export-button {
+    font-size: 13px;
+    padding: 8px 14px;
+  }
+}
+
+/* Focus styles for accessibility */
+.notebooklm-export-button:focus {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+.notebooklm-export-button:focus:not(:focus-visible) {
+  outline: none;
+}
