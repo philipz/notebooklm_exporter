@@ -16,13 +16,16 @@ A Chrome extension that exports NotebookLM chat conversations to Markdown format
 ### Option 1: Load Unpacked Extension (Development)
 
 1. **Download the extension**
+
    - Clone this repository or download the `notebooklm_exporter` folder
 
 2. **Open Chrome Extensions**
+
    - Navigate to `chrome://extensions/`
    - Enable "Developer mode" (toggle in top-right corner)
 
 3. **Load the extension**
+
    - Click "Load unpacked"
    - Select the `notebooklm_exporter` folder
    - The extension should now appear in your extensions list
@@ -38,17 +41,19 @@ _Once published to the Chrome Web Store, users can install with one click._
 ## Usage
 
 1. **Open NotebookLM**
+
    - Navigate to https://notebooklm.google.com
    - Start or open a chat conversation
 
 2. **Export the conversation**
-   - Look for the "📄 Export to Markdown" button at the top of the chat
+
+   - Look for the "Export" button at the top of the chat
    - Click the button
    - The conversation will be downloaded as a `.md` file
 
 3. **File naming**
-   - Files are named: `notebooklm-chat-YYYY-MM-DD-HH-MM-SS.md`
-   - Example: `notebooklm-chat-2025-01-26-14-30-45.md`
+   - Files are named: `notebooklm-chat-YYYY-MM-DD-HH-MM-SS.md` and `notebooklm-studio-XXXXXXX-YYYY-MM-DD.md`
+   - Example: `notebooklm-chat-2025-01-26-14-30-45.md` and `notebooklm-studio-ai整合開發的成本-監督與趨勢-2025-10-27.md`
 
 ## Exported Format
 
@@ -114,6 +119,8 @@ Exported: 1/26/2025, 2:30:45 PM
 ```
 notebooklm_exporter/
 ├── manifest.json          # Extension configuration
+├── IMPLEMENTATION_SUMMARY.md # Describe implementation details
+├── INSTALL.md            # How to install this extension
 ├── README.md             # This file
 ├── icons/                # Extension icons
 │   ├── icon16.png
@@ -153,6 +160,7 @@ No data is collected, transmitted, or stored outside your browser.
 ### Local Development
 
 1. **Make changes**
+
    - Edit files in the `notebooklm_exporter` folder
    - Common files to modify:
      - `content/content.js`: Main logic
@@ -160,6 +168,7 @@ No data is collected, transmitted, or stored outside your browser.
      - `manifest.json`: Extension config
 
 2. **Reload extension**
+
    - Go to `chrome://extensions/`
    - Click the reload icon for "NotebookLM Markdown Exporter"
    - Refresh the NotebookLM page to see changes
@@ -234,7 +243,8 @@ This project is provided as-is for personal and educational use.
 
 ## Version History
 
-### 1.0.0 (2025-01-26)
+### 1.0.0 (2025-10-26)
+
 - Initial release
 - Basic export functionality
 - Markdown conversion with Turndown.js

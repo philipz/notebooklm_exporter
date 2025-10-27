@@ -2,7 +2,7 @@
 
 ## NotebookLM Markdown Exporter - Chrome Extension
 
-**Implemented**: January 26, 2025
+**Implemented**: October 26, 2025
 **Status**: ✅ Complete and ready for testing
 **Version**: 1.0.0
 
@@ -24,12 +24,14 @@
 ### Implementation Features - ✅ Complete
 
 #### DOM Detection Strategy
+
 - [x] Multiple selector fallbacks (`[role="main"]`, `.chat-container`, `main`)
 - [x] Retry logic with 100ms delays
 - [x] 10-second timeout with clear error messages
 - [x] Logging for debugging
 
 #### Message Extraction
+
 - [x] Multiple selector strategies for different UI versions
 - [x] Role inference from DOM patterns
 - [x] Alternating pattern fallback
@@ -38,6 +40,7 @@
 - [x] Content cleaning with pattern matching
 
 #### Markdown Conversion
+
 - [x] Turndown.js integration with custom config
 - [x] Frontmatter with timestamp and source
 - [x] User/Assistant headings
@@ -45,6 +48,7 @@
 - [x] Whitespace cleanup
 
 #### User Experience
+
 - [x] Visual button with clear states
 - [x] Success feedback (green, ✅)
 - [x] Error feedback (red, ❌ with message)
@@ -52,6 +56,7 @@
 - [x] Accessible ARIA labels
 
 #### Error Handling
+
 - [x] Try-catch wrappers
 - [x] User-friendly error messages
 - [x] Console logging for debugging
@@ -102,12 +107,14 @@ notebooklm_exporter/
   "manifest_version": 3,
   "permissions": ["activeTab"],
   "host_permissions": ["https://notebooklm.google.com/*"],
-  "content_scripts": [{
-    "matches": ["https://notebooklm.google.com/*"],
-    "js": ["lib/turndown.min.js", "content/content.js"],
-    "css": ["content/styles.css"],
-    "run_at": "document_idle"
-  }]
+  "content_scripts": [
+    {
+      "matches": ["https://notebooklm.google.com/*"],
+      "js": ["lib/turndown.min.js", "content/content.js"],
+      "css": ["content/styles.css"],
+      "run_at": "document_idle"
+    }
+  ]
 }
 ```
 
@@ -115,11 +122,11 @@ notebooklm_exporter/
 
 ```javascript
 const SELECTORS = {
-  MAIN_CONTAINER: ['[role="main"]', '.chat-container', 'main'],
-  MESSAGE_CONTAINER: ['.messages', '.conversation', '[role="log"]'],
-  MESSAGE_ITEM: ['[data-message-id]', '.message', '.chat-message'],
-  USER_MESSAGE: ['.user-message', '[data-role="user"]'],
-  ASSISTANT_MESSAGE: ['.assistant-message', '[data-role="assistant"]']
+  MAIN_CONTAINER: ['[role="main"]', ".chat-container", "main"],
+  MESSAGE_CONTAINER: [".messages", ".conversation", '[role="log"]'],
+  MESSAGE_ITEM: ["[data-message-id]", ".message", ".chat-message"],
+  USER_MESSAGE: [".user-message", '[data-role="user"]'],
+  ASSISTANT_MESSAGE: [".assistant-message", '[data-role="assistant"]'],
 };
 ```
 
@@ -127,16 +134,16 @@ const SELECTORS = {
 
 ```javascript
 // Core Functions (all implemented)
-- waitForChatContainer()      // Async wait with retries
-- injectExportButton()         // Button creation and event binding
-- extractChatMessages()        // DOM parsing with role detection
-- cleanChatMessageContent()    // Remove UI elements and clean content
-- convertToMarkdown()          // Turndown.js conversion
-- generateFilename()           // Timestamp-based naming
-- downloadMarkdown()           // Blob creation and download
-- showSuccessMessage()         // Visual success feedback
-- showErrorMessage()           // Visual error feedback
-- main()                       // Entry point
+-waitForChatContainer() - // Async wait with retries
+  injectExportButton() - // Button creation and event binding
+  extractChatMessages() - // DOM parsing with role detection
+  cleanChatMessageContent() - // Remove UI elements and clean content
+  convertToMarkdown() - // Turndown.js conversion
+  generateFilename() - // Timestamp-based naming
+  downloadMarkdown() - // Blob creation and download
+  showSuccessMessage() - // Visual success feedback
+  showErrorMessage() - // Visual error feedback
+  main(); // Entry point
 ```
 
 ### 4. Error Handling Pattern
@@ -144,11 +151,11 @@ const SELECTORS = {
 ```javascript
 try {
   button.disabled = true;
-  button.textContent = '⏳ Exporting...';
+  button.textContent = "⏳ Exporting...";
 
   const messages = extractChatMessages(container);
   if (messages.length === 0) {
-    throw new Error('No messages found to export');
+    throw new Error("No messages found to export");
   }
 
   const markdown = convertToMarkdown(messages);
@@ -157,7 +164,7 @@ try {
 
   showSuccessMessage(button);
 } catch (error) {
-  console.error('[NotebookLM Exporter] Export failed:', error);
+  console.error("[NotebookLM Exporter] Export failed:", error);
   showErrorMessage(button, error.message);
 }
 ```
@@ -221,12 +228,14 @@ Ready to test in Chrome:
 ### Expected Behaviors
 
 **On page load:**
+
 - Console: `[NotebookLM Exporter] Initializing...`
 - Console: `[NotebookLM Exporter] Found container with selector: ...`
 - Console: `[NotebookLM Exporter] Button injected successfully`
 - Console: `[NotebookLM Exporter] Ready`
 
 **On button click:**
+
 - Button: `⏳ Exporting...`
 - Console: `[NotebookLM Exporter] Found N messages with selector: ...`
 - Console: `[NotebookLM Exporter] Extracted N messages`
@@ -234,6 +243,7 @@ Ready to test in Chrome:
 - Button: `✅ Exported!` (then resets after 2 seconds)
 
 **On error:**
+
 - Button: `❌ Error: [message]` (then resets after 3 seconds)
 - Console: `[NotebookLM Exporter] Export failed: [error]`
 
@@ -242,23 +252,27 @@ Ready to test in Chrome:
 ## Philosophy Compliance
 
 ### ✅ Ruthless Simplicity
+
 - Single JavaScript file for all logic
 - No unnecessary abstractions
 - Direct DOM manipulation
 - Clear, linear flow
 
 ### ✅ Local Processing
+
 - All operations in-browser
 - No external API calls
 - No data transmission
 - No tracking
 
 ### ✅ Clear Contracts
+
 - Each function has one responsibility
 - Input/output clearly defined
 - Error conditions documented
 
 ### ✅ Fail Gracefully
+
 - Multiple selector fallbacks
 - Clear error messages
 - Visual feedback for users
@@ -278,18 +292,21 @@ Ready to test in Chrome:
 ## Next Steps
 
 ### Immediate (Ready Now)
+
 1. Load extension in Chrome
 2. Test on real NotebookLM conversations
 3. Verify all features work
 4. Note any DOM selector issues
 
 ### Short-term (After Testing)
+
 1. Update selectors based on real NotebookLM UI
 2. Create better icons
 3. Handle edge cases discovered in testing
 4. Add configuration options if needed
 
 ### Long-term (Future Enhancements)
+
 1. Export source materials
 2. Custom export formats (JSON, plain text)
 3. Export options UI (timestamps, formatting)
