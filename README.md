@@ -5,6 +5,7 @@ A Chrome extension that exports NotebookLM chat conversations to Markdown format
 ## Features
 
 - **One-Click Export**: Export entire conversations with a single button click
+- **Clean Content**: Automatically removes UI elements, buttons, and suggested questions
 - **Markdown Format**: Clean, readable Markdown with proper formatting
 - **Conversation Structure**: Preserves user/assistant message flow
 - **Metadata**: Includes export timestamp and source information
@@ -86,6 +87,12 @@ Exported: 1/26/2025, 2:30:45 PM
 - **Headings**: Each message has a `## User` or `## Assistant` heading
 - **Separators**: Messages separated by `---` horizontal rules
 - **Content**: HTML converted to clean Markdown using Turndown.js
+- **Content Cleaning**: Automatically removes:
+  - UI buttons and controls
+  - Suggested follow-up questions
+  - Input fields and forms
+  - Navigation elements
+  - Icon labels and UI text
 - **Formatting**: Preserves:
   - Headings and emphasis
   - Lists (bulleted and numbered)

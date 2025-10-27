@@ -34,6 +34,8 @@
 - [x] Role inference from DOM patterns
 - [x] Alternating pattern fallback
 - [x] Empty message handling
+- [x] UI element removal (buttons, forms, suggested questions)
+- [x] Content cleaning with pattern matching
 
 #### Markdown Conversion
 - [x] Turndown.js integration with custom config
@@ -128,6 +130,7 @@ const SELECTORS = {
 - waitForChatContainer()      // Async wait with retries
 - injectExportButton()         // Button creation and event binding
 - extractChatMessages()        // DOM parsing with role detection
+- cleanChatMessageContent()    // Remove UI elements and clean content
 - convertToMarkdown()          // Turndown.js conversion
 - generateFilename()           // Timestamp-based naming
 - downloadMarkdown()           // Blob creation and download

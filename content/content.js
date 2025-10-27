@@ -1,12 +1,9 @@
 /**
- * NotebookLM Markdown Exporter - Content Script
+ * NotebookLM Markdown Exporter - Content Script V3
  *
- * This script:
- * 1. Waits for the NotebookLM chat interface to load
- * 2. Injects an "Export to Markdown" button
- * 3. Extracts chat messages when clicked
- * 4. Converts HTML to Markdown using Turndown.js
- * 5. Downloads the result as a .md file
+ * Features:
+ * - Chat Export: Export entire conversation
+ * - Studio Export: Export selected items with checkboxes (one file per item)
  */
 
 (function() {
@@ -16,10 +13,15 @@
   const CONFIG = {
     TIMEOUT_MS: 10000,
     RETRY_DELAY_MS: 100,
-    MAX_RETRIES: 100, // 10 seconds total
+    MAX_RETRIES: 100,
+    CONTENT_LOAD_DELAY_MS: 2000, // Wait for content to load after clicking item (increased to 2s)
+    DOWNLOAD_DELAY_MS: 800, // Delay between multiple downloads
     SELECTORS: {
-      // Try multiple selectors in priority order
-      MAIN_CONTAINER: ['[role="main"]', '.chat-container', 'main'],
+      CHAT_PANEL: '.chat-panel',
+      CHAT_TOOLBAR: '.chat-panel .panel-header .chat-header-buttons',
+      STUDIO_PANEL: '.studio-panel',
+      STUDIO_TOOLBAR: '.studio-panel .panel-header',
+      STUDIO_ITEMS: '.mat-mdc-button.artifact-button-content',
       MESSAGE_CONTAINER: ['.messages', '.conversation', '[role="log"]'],
       MESSAGE_ITEM: ['[data-message-id]', '.message', '.chat-message'],
       USER_MESSAGE: ['.user-message', '[data-role="user"]'],
@@ -28,84 +30,514 @@
   };
 
   /**
-   * Wait for the chat container to appear in the DOM
-   * Tries multiple selector strategies with retries
+   * Wait for toolbars to appear in the DOM
    */
-  async function waitForChatContainer() {
+  async function waitForToolbars() {
     let attempts = 0;
 
     while (attempts < CONFIG.MAX_RETRIES) {
-      // Try each selector in priority order
-      for (const selector of CONFIG.SELECTORS.MAIN_CONTAINER) {
-        const container = document.querySelector(selector);
-        if (container) {
-          console.log(`[NotebookLM Exporter] Found container with selector: ${selector}`);
-          return container;
-        }
+      const chatToolbar = document.querySelector(CONFIG.SELECTORS.CHAT_TOOLBAR);
+      const studioToolbar = document.querySelector(CONFIG.SELECTORS.STUDIO_TOOLBAR);
+
+      if (chatToolbar || studioToolbar) {
+        console.log('[NotebookLM Exporter] Found toolbars');
+        return { chatToolbar, studioToolbar };
       }
 
-      // Wait before retry
       await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY_MS));
       attempts++;
     }
 
-    throw new Error('Chat container not found after timeout');
+    throw new Error('Toolbars not found');
   }
 
   /**
-   * Inject the export button into the chat interface
+   * Create Chat export button
    */
-  function injectExportButton(container) {
-    // Check if button already exists
-    if (document.getElementById('notebooklm-export-btn')) {
-      console.log('[NotebookLM Exporter] Button already exists');
-      return;
-    }
+  function createChatExportButton(id, text) {
+    const button = createBaseExportButton(id, text);
 
-    const button = document.createElement('button');
-    button.id = 'notebooklm-export-btn';
-    button.className = 'notebooklm-export-button';
-    button.textContent = '📄 Export to Markdown';
-    button.setAttribute('aria-label', 'Export conversation to Markdown');
-
-    // Add click handler
     button.addEventListener('click', async () => {
       try {
         button.disabled = true;
         button.textContent = '⏳ Exporting...';
+        button.style.opacity = '0.7';
 
-        const messages = extractChatMessages(container);
+        const messages = extractChatMessages();
         if (messages.length === 0) {
-          throw new Error('No messages found to export');
+          throw new Error('No messages found');
         }
 
         const markdown = convertToMarkdown(messages);
-        const filename = generateFilename();
+        const filename = generateChatFilename();
         downloadMarkdown(markdown, filename);
 
-        showSuccessMessage(button);
+        showSuccessMessage(button, text);
       } catch (error) {
-        console.error('[NotebookLM Exporter] Export failed:', error);
-        showErrorMessage(button, error.message);
+        console.error('[NotebookLM Exporter] Chat export failed:', error);
+        showErrorMessage(button, error.message, text);
       }
     });
 
-    // Insert button at the top of the container
-    container.insertBefore(button, container.firstChild);
-    console.log('[NotebookLM Exporter] Button injected successfully');
+    return button;
+  }
+
+  /**
+   * Create Studio export button
+   */
+  function createStudioExportButton(id, text) {
+    const button = createBaseExportButton(id, text);
+
+    button.addEventListener('click', async () => {
+      try {
+        button.disabled = true;
+        button.textContent = '⏳ Exporting...';
+        button.style.opacity = '0.7';
+
+        await exportStudioItems(button, text);
+
+      } catch (error) {
+        console.error('[NotebookLM Exporter] Studio export failed:', error);
+        showErrorMessage(button, error.message, text);
+      }
+    });
+
+    return button;
+  }
+
+  /**
+   * Create base export button with shared styling
+   */
+  function createBaseExportButton(id, text) {
+    const button = document.createElement('button');
+    button.id = id;
+    button.textContent = text;
+    button.setAttribute('aria-label', 'Export to Markdown');
+
+    // Button styles - Blue color to distinguish from PDF extension
+    Object.assign(button.style, {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '8px 16px',
+      marginLeft: '8px',
+      background: '#1a73e8',  // Google Blue
+      color: 'white',
+      border: 'none',
+      borderRadius: '20px',
+      fontSize: '14px',
+      fontWeight: '500',
+      cursor: 'pointer',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+      transition: 'all 0.2s ease',
+      whiteSpace: 'nowrap'
+    });
+
+    // Hover effect
+    button.addEventListener('mouseenter', () => {
+      if (!button.disabled) {
+        button.style.background = '#1557b0';
+        button.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
+      }
+    });
+
+    button.addEventListener('mouseleave', () => {
+      if (!button.disabled) {
+        button.style.background = '#1a73e8';
+        button.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
+      }
+    });
+
+    return button;
+  }
+
+  /**
+   * Inject export buttons into toolbars
+   */
+  function injectExportButtons(toolbars) {
+    const { chatToolbar, studioToolbar } = toolbars;
+
+    // Inject Chat Export button
+    if (chatToolbar && !document.getElementById('notebooklm-export-chat-btn')) {
+      const chatButton = createChatExportButton('notebooklm-export-chat-btn', 'Export');
+      chatToolbar.appendChild(chatButton);
+      console.log('[NotebookLM Exporter] Chat Export button injected');
+    }
+
+    // Inject Studio Export button
+    if (studioToolbar && !document.getElementById('notebooklm-export-studio-btn')) {
+      const studioButton = createStudioExportButton('notebooklm-export-studio-btn', 'Export');
+      studioToolbar.appendChild(studioButton);
+      console.log('[NotebookLM Exporter] Studio Export button injected');
+    }
+  }
+
+  /**
+   * Inject radio buttons next to Studio items (single selection)
+   */
+  function injectStudioCheckboxes() {
+    const studioPanel = document.querySelector(CONFIG.SELECTORS.STUDIO_PANEL);
+    if (!studioPanel) {
+      console.log('[NotebookLM Exporter] Studio panel not found');
+      return;
+    }
+
+    const studioItems = studioPanel.querySelectorAll(CONFIG.SELECTORS.STUDIO_ITEMS);
+    console.log(`[NotebookLM Exporter] Found ${studioItems.length} Studio items`);
+
+    let documentItemCount = 0;
+
+    studioItems.forEach((item, index) => {
+      // Check if radio button already exists
+      if (item.previousElementSibling?.classList.contains('studio-export-radio-container')) {
+        return;
+      }
+
+      // Filter: Only add radio to document items (Reports, Flashcards, Quiz)
+      // Exclude: Audio Overview, Video Overview, Mind Map (creation buttons)
+      const icon = item.querySelector('mat-icon');
+      const iconText = icon?.textContent?.trim();
+
+      // Only add radio to document items (sticky_note_2 icon)
+      if (iconText !== 'sticky_note_2') {
+        return;
+      }
+
+      // Create radio container
+      const radioContainer = document.createElement('div');
+      radioContainer.className = 'studio-export-radio-container';
+      Object.assign(radioContainer.style, {
+        display: 'inline-flex',
+        alignItems: 'center',
+        marginRight: '8px',
+        verticalAlign: 'middle'
+      });
+
+      // Create radio button (single selection)
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'studio-export-item';  // Same name for radio group
+      radio.className = 'studio-export-radio';
+      radio.id = `studio-radio-${index}`;
+      radio.value = index;
+      Object.assign(radio.style, {
+        width: '18px',
+        height: '18px',
+        cursor: 'pointer',
+        accentColor: '#1a73e8'
+      });
+
+      // Auto-select when user clicks the item
+      item.addEventListener('click', () => {
+        radio.checked = true;
+      });
+
+      radioContainer.appendChild(radio);
+
+      // Insert before the item button
+      item.parentNode.insertBefore(radioContainer, item);
+      documentItemCount++;
+    });
+
+    console.log(`[NotebookLM Exporter] Studio radio buttons injected (${documentItemCount} document items)`);
+  }
+
+  /**
+   * Export selected Studio item (single selection with radio button)
+   */
+  async function exportStudioItems(button, originalText) {
+    const studioPanel = document.querySelector(CONFIG.SELECTORS.STUDIO_PANEL);
+    if (!studioPanel) {
+      throw new Error('Studio panel not found');
+    }
+
+    // Find the selected radio button
+    const selectedRadio = studioPanel.querySelector('.studio-export-radio:checked');
+
+    if (!selectedRadio) {
+      throw new Error('No item selected');
+    }
+
+    try {
+      button.textContent = '⏳ Exporting...';
+
+      // Get the item button next to the radio
+      const itemButton = selectedRadio.parentElement.nextElementSibling;
+
+      if (!itemButton) {
+        throw new Error('Item button not found');
+      }
+
+      // Extract title from item button using .artifact-title selector
+      const titleElement = itemButton.querySelector('.artifact-title');
+      const title = titleElement ? titleElement.textContent.trim() : 'Studio-Item';
+
+      console.log(`[NotebookLM Exporter] Exporting: "${title}"`);
+
+      // Check if we're already viewing the Note content
+      let docViewer = studioPanel.querySelector('labs-tailwind-doc-viewer');
+
+      if (!docViewer) {
+        // We're on the list page, need to click into the Note
+        console.log(`[NotebookLM Exporter] Opening Note: "${title}"`);
+        button.textContent = '⏳ Opening Note...';
+
+        // Click the item button to open the Note
+        itemButton.click();
+
+        // Wait for content to load
+        await waitForNoteContent(studioPanel, CONFIG.CONTENT_LOAD_DELAY_MS);
+
+        // Try to find the doc viewer again
+        docViewer = studioPanel.querySelector('labs-tailwind-doc-viewer');
+
+        if (!docViewer) {
+          throw new Error('Failed to load Note content. Please try opening the Note manually first.');
+        }
+      }
+
+      button.textContent = '⏳ Extracting content...';
+
+      // Extract content
+      const content = extractStudioItemContent();
+
+      if (!content || content.textContent.trim().length < 100) {
+        throw new Error('Content not found or too short. Please make sure the item is loaded.');
+      }
+
+      // Convert to markdown
+      const markdown = convertStudioItemToMarkdown(title, content);
+
+      // Generate filename
+      const filename = generateStudioFilename(title);
+
+      // Download
+      downloadMarkdown(markdown, filename);
+
+      console.log(`[NotebookLM Exporter] Successfully exported: "${title}"`);
+
+      // Navigate back to Studio list page
+      await navigateBackToStudioList(studioPanel);
+
+      showSuccessMessage(button, originalText);
+
+    } catch (error) {
+      console.error(`[NotebookLM Exporter] Export failed:`, error);
+      // Try to navigate back even on error
+      try {
+        await navigateBackToStudioList(studioPanel);
+      } catch (navError) {
+        console.warn('[NotebookLM Exporter] Failed to navigate back:', navError);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Wait for Note content to load
+   */
+  async function waitForNoteContent(studioPanel, maxWaitMs) {
+    const startTime = Date.now();
+    const checkInterval = 100; // Check every 100ms
+
+    while (Date.now() - startTime < maxWaitMs) {
+      const docViewer = studioPanel.querySelector('labs-tailwind-doc-viewer');
+      if (docViewer && docViewer.textContent?.trim().length > 100) {
+        console.log(`[NotebookLM Exporter] Note content loaded (${Date.now() - startTime}ms)`);
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, checkInterval));
+    }
+
+    throw new Error(`Timeout waiting for Note content to load (${maxWaitMs}ms)`);
+  }
+
+  /**
+   * Navigate back to Studio list page
+   */
+  async function navigateBackToStudioList(studioPanel) {
+    try {
+      // Check if we're in Note view (has "Studio > Note" in header)
+      const headerText = studioPanel.querySelector('.panel-header')?.textContent;
+      if (!headerText || !headerText.includes('Note')) {
+        console.log('[NotebookLM Exporter] Already on Studio list page');
+        return;
+      }
+
+      // Try multiple strategies to find the back button
+      const backButtonSelectors = [
+        'button[aria-label*="Back"]',
+        'button[aria-label*="back"]',
+        'button[aria-label*="Close"]',
+        'button[aria-label*="close"]',
+        'button mat-icon[fonticon="arrow_back"]',
+        '.panel-header button:first-child',
+        '.panel-header [role="button"]:first-child'
+      ];
+
+      let backButton = null;
+      for (const selector of backButtonSelectors) {
+        backButton = studioPanel.querySelector(selector);
+        if (backButton) {
+          console.log(`[NotebookLM Exporter] Found back button with selector: ${selector}`);
+          break;
+        }
+      }
+
+      // Also try finding button with arrow_back icon
+      if (!backButton) {
+        const allButtons = studioPanel.querySelectorAll('.panel-header button');
+        for (const btn of allButtons) {
+          const icon = btn.querySelector('mat-icon');
+          if (icon && icon.textContent.trim() === 'arrow_back') {
+            backButton = btn;
+            console.log('[NotebookLM Exporter] Found back button by icon content');
+            break;
+          }
+        }
+      }
+
+      if (backButton) {
+        console.log('[NotebookLM Exporter] Navigating back to Studio list');
+        backButton.click();
+        // Wait for navigation to complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } else {
+        console.warn('[NotebookLM Exporter] Back button not found, staying on Note page');
+        console.warn('[NotebookLM Exporter] Please manually navigate back to the Studio list');
+      }
+    } catch (error) {
+      console.warn('[NotebookLM Exporter] Error navigating back:', error);
+      // Don't throw - this is not critical
+    }
+  }
+
+  /**
+   * Extract content from currently displayed Studio item
+   */
+  function extractStudioItemContent() {
+    const studioPanel = document.querySelector(CONFIG.SELECTORS.STUDIO_PANEL);
+    if (!studioPanel) {
+      return document.createElement('div');
+    }
+
+    // Primary selector: labs-tailwind-doc-viewer (the actual content viewer)
+    // This contains the clean article content without UI controls
+    const docViewer = studioPanel.querySelector('labs-tailwind-doc-viewer');
+
+    if (docViewer) {
+      const textContent = docViewer.textContent?.trim();
+      if (textContent && textContent.length > 100) {
+        console.log(`[NotebookLM Exporter] Content extracted from doc-viewer: ${textContent.length} chars`);
+        console.log(`[NotebookLM Exporter] Content preview: "${textContent.substring(0, 100)}..."`);
+        return docViewer.cloneNode(true);
+      }
+    }
+
+    // Fallback 1: Try note-editor form (contains doc-viewer)
+    const noteForm = studioPanel.querySelector('note-editor form');
+    if (noteForm) {
+      // Try to find doc-viewer inside the form
+      const innerDocViewer = noteForm.querySelector('labs-tailwind-doc-viewer');
+      if (innerDocViewer) {
+        console.log(`[NotebookLM Exporter] Using doc-viewer from note-editor form`);
+        return innerDocViewer.cloneNode(true);
+      }
+    }
+
+    // Fallback 2: Try other content selectors
+    const fallbackSelectors = [
+      '.artifact-content',
+      '.artifact-viewer',
+      '.panel-content'
+    ];
+
+    for (const selector of fallbackSelectors) {
+      const fallbackArea = studioPanel.querySelector(selector);
+      if (fallbackArea && fallbackArea.textContent?.trim().length > 100) {
+        console.log(`[NotebookLM Exporter] Using fallback selector: ${selector}`);
+        return fallbackArea.cloneNode(true);
+      }
+    }
+
+    console.warn('[NotebookLM Exporter] No content area found, using studio panel');
+    return studioPanel.cloneNode(true);
+  }
+
+  /**
+   * Convert Studio item content to Markdown
+   */
+  function convertStudioItemToMarkdown(title, contentElement) {
+    const turndownService = new TurndownService({
+      headingStyle: 'atx',
+      codeBlockStyle: 'fenced',
+      bulletListMarker: '-',
+      emDelimiter: '_'
+    });
+
+    turndownService.addRule('removeScripts', {
+      filter: ['script', 'style', 'noscript'],
+      replacement: () => ''
+    });
+
+    // Build markdown
+    let markdown = '';
+
+    // Add frontmatter
+    const timestamp = new Date().toISOString();
+    markdown += `---\n`;
+    markdown += `exported: ${timestamp}\n`;
+    markdown += `source: NotebookLM Studio\n`;
+    markdown += `title: ${title}\n`;
+    markdown += `---\n\n`;
+    markdown += `# ${title}\n\n`;
+    markdown += `Exported: ${new Date().toLocaleString()}\n\n`;
+    markdown += `---\n\n`;
+
+    // Convert content
+    const htmlContent = contentElement.innerHTML;
+    const markdownContent = turndownService.turndown(htmlContent);
+    markdown += markdownContent.trim() + '\n';
+
+    // Clean up excessive newlines
+    markdown = markdown.replace(/\n{3,}/g, '\n\n');
+
+    return markdown;
+  }
+
+  /**
+   * Generate filename for Studio item
+   */
+  function generateStudioFilename(title) {
+    // Clean title for filename
+    const cleanTitle = title
+      .toLowerCase()
+      .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')  // Replace non-alphanumeric (including Chinese) with dash
+      .replace(/^-+|-+$/g, '')  // Remove leading/trailing dashes
+      .substring(0, 50);  // Limit length
+
+    const date = new Date();
+    const dateStr = date.toISOString().split('T')[0];
+
+    return `notebooklm-studio-${cleanTitle}-${dateStr}.md`;
   }
 
   /**
    * Extract chat messages from the DOM
-   * Returns array of {role: 'user'|'assistant', content: HTMLElement}
    */
-  function extractChatMessages(container) {
+  function extractChatMessages() {
     const messages = [];
+    const chatPanel = document.querySelector(CONFIG.SELECTORS.CHAT_PANEL);
+
+    if (!chatPanel) {
+      console.log('[NotebookLM Exporter] Chat panel not found');
+      return messages;
+    }
 
     // Try to find message container
-    let messageContainer = container;
+    let messageContainer = chatPanel;
     for (const selector of CONFIG.SELECTORS.MESSAGE_CONTAINER) {
-      const found = container.querySelector(selector);
+      const found = chatPanel.querySelector(selector);
       if (found) {
         messageContainer = found;
         break;
@@ -122,28 +554,34 @@
       }
     }
 
-    // If no messages found with specific selectors, try generic approach
+    // If no messages found, try generic approach
     if (messageElements.length === 0) {
-      // Look for alternating div patterns or common chat structures
       const allDivs = Array.from(messageContainer.querySelectorAll('div'));
       messageElements = allDivs.filter(div => {
-        // Filter for elements that look like messages
         const text = div.textContent?.trim();
         return text && text.length > 10 && div.children.length > 0;
       });
       console.log(`[NotebookLM Exporter] Using generic div selection: ${messageElements.length} candidates`);
     }
 
-    // Extract messages and infer roles
+    // Extract messages and infer roles with deduplication
+    const seenContent = new Set();
+
     messageElements.forEach((element, index) => {
-      // Skip empty messages
       if (!element.textContent?.trim()) {
         return;
       }
 
-      // Try to determine role from class/attributes
-      let role = 'assistant'; // Default to assistant
+      // Skip if this element is a child of another message element
+      const isNested = messageElements.some((other, otherIndex) => {
+        return otherIndex !== index && other.contains(element);
+      });
 
+      if (isNested) {
+        return;
+      }
+
+      let role = 'assistant';
       for (const selector of CONFIG.SELECTORS.USER_MESSAGE) {
         if (element.matches(selector) || element.querySelector(selector)) {
           role = 'user';
@@ -151,42 +589,143 @@
         }
       }
 
-      // If still assistant, check assistant selectors
-      if (role === 'assistant') {
-        for (const selector of CONFIG.SELECTORS.ASSISTANT_MESSAGE) {
-          if (element.matches(selector) || element.querySelector(selector)) {
-            role = 'assistant';
-            break;
-          }
-        }
-      }
-
-      // Fallback: alternate based on position (user starts conversations)
+      // Fallback: alternate based on position
       if (messages.length === 0 && role === 'assistant') {
-        role = 'user'; // First message is typically from user
+        role = 'user';
       } else if (messages.length > 0) {
-        // Alternate roles if we can't determine from DOM
         const lastRole = messages[messages.length - 1].role;
         if (role === lastRole) {
           role = lastRole === 'user' ? 'assistant' : 'user';
         }
       }
 
+      // Clone and clean the message content
+      const cleanedContent = cleanChatMessageContent(element);
+      const contentText = cleanedContent.textContent?.trim();
+
+      // Skip if content is too short or already seen
+      if (!contentText || contentText.length < 10) {
+        return;
+      }
+
+      // Create a content signature for deduplication
+      const contentSignature = contentText.substring(0, 200);
+      if (seenContent.has(contentSignature)) {
+        console.log(`[NotebookLM Exporter] Skipping duplicate message: "${contentSignature.substring(0, 50)}..."`);
+        return;
+      }
+
+      seenContent.add(contentSignature);
+
       messages.push({
         role,
-        content: element.cloneNode(true) // Clone to avoid modifying original
+        content: cleanedContent
       });
     });
 
-    console.log(`[NotebookLM Exporter] Extracted ${messages.length} messages`);
+    console.log(`[NotebookLM Exporter] Extracted ${messages.length} unique messages`);
     return messages;
   }
 
   /**
-   * Convert messages to Markdown format
+   * Clean chat message content by removing UI elements
+   */
+  function cleanChatMessageContent(element) {
+    const cloned = element.cloneNode(true);
+
+    // Remove common UI elements
+    const uiSelectors = [
+      'button',                      // All buttons
+      '.mdc-button',                 // Material Design buttons
+      '.mat-mdc-button',             // Angular Material buttons
+      '[role="button"]',             // Button-like elements
+      'mat-icon',                    // Material icons
+      '[class*="toolbar"]',          // Toolbars
+      '[class*="action"]',           // Action buttons
+      '.thumb-up',                   // Thumbs up/down
+      '.thumb-down',
+      '[aria-label*="Copy"]',        // Copy buttons
+      '[aria-label*="Save"]',        // Save buttons
+      '[aria-label*="Refresh"]',     // Refresh buttons
+      '[class*="emoji"]',            // Emoji picker
+      'input',                       // Input fields
+      'form',                        // Forms
+      'omnibar',                     // NotebookLM omnibar (follow-up questions)
+      'query-box',                   // Query input box
+      'follow-up',                   // Follow-up suggestions
+      'scroll-carousel',             // Carousel for follow-up chips
+      '.follow-up-chip',             // Individual follow-up question chips
+      '.omnibar-container',          // Omnibar container
+      '.query-box-container',        // Query box container
+      'textarea[placeholder*="typing"]'  // Query input textarea
+    ];
+
+    uiSelectors.forEach(selector => {
+      const elements = cloned.querySelectorAll(selector);
+      elements.forEach(el => el.remove());
+    });
+
+    // Remove specific text patterns (UI labels)
+    const textNodesToRemove = [];
+    const walker = document.createTreeWalker(
+      cloned,
+      NodeFilter.SHOW_TEXT,
+      null,
+      false
+    );
+
+    const uiTextPatterns = [
+      /^Search results$/,
+      /^No emoji found$/,
+      /^Recently used$/,
+      /^Loading$/,
+      /^keep$/,
+      /^Save to note$/,
+      /^copy_all$/,
+      /^thumb_up$/,
+      /^thumb_down$/,
+      /^keep_pin$/,
+      /^subscriptions$/,
+      /^audio_magic_eraser$/,
+      /^Video Overview$/,
+      /^Audio Overview$/,
+      /^flowchart$/,
+      /^Mind Map$/,
+      /^arrow_forward$/,
+      /^keyboard_arrow_down$/,
+      /^\d+ sources$/,
+      /^quick_phrases$/,
+      /^Refresh$/,
+      /^tune$/,
+      /^Start typing\.\.\.$/,
+      /^chevron_right$/,
+      /^chevron_left$/
+    ];
+
+    while (walker.nextNode()) {
+      const textNode = walker.currentNode;
+      const text = textNode.textContent.trim();
+
+      // Check if this text matches any UI pattern
+      if (uiTextPatterns.some(pattern => pattern.test(text))) {
+        textNodesToRemove.push(textNode);
+      }
+    }
+
+    // Remove identified text nodes
+    textNodesToRemove.forEach(node => {
+      if (node.parentNode) {
+        node.parentNode.removeChild(node);
+      }
+    });
+
+    return cloned;
+  }
+
+  /**
+   * Convert chat messages to Markdown format
    */
   function convertToMarkdown(messages) {
-    // Initialize Turndown
     const turndownService = new TurndownService({
       headingStyle: 'atx',
       codeBlockStyle: 'fenced',
@@ -194,13 +733,11 @@
       emDelimiter: '_'
     });
 
-    // Add custom rules for better formatting
     turndownService.addRule('removeScripts', {
       filter: ['script', 'style', 'noscript'],
       replacement: () => ''
     });
 
-    // Build markdown content
     let markdown = '';
 
     // Add frontmatter
@@ -218,31 +755,28 @@
       const role = msg.role === 'user' ? 'User' : 'Assistant';
       markdown += `## ${role}\n\n`;
 
-      // Convert HTML to Markdown
       const htmlContent = msg.content.innerHTML;
       const markdownContent = turndownService.turndown(htmlContent);
 
       markdown += markdownContent.trim() + '\n\n';
 
-      // Add separator between messages (except last)
       if (index < messages.length - 1) {
         markdown += `---\n\n`;
       }
     });
 
-    // Clean up extra whitespace
     markdown = markdown.replace(/\n{3,}/g, '\n\n');
 
     return markdown;
   }
 
   /**
-   * Generate filename for the export
+   * Generate filename for chat export
    */
-  function generateFilename() {
+  function generateChatFilename() {
     const date = new Date();
-    const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
-    const timeStr = date.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS
+    const dateStr = date.toISOString().split('T')[0];
+    const timeStr = date.toTimeString().split(' ')[0].replace(/:/g, '-');
     return `notebooklm-chat-${dateStr}-${timeStr}.md`;
   }
 
@@ -262,7 +796,6 @@
     link.click();
     document.body.removeChild(link);
 
-    // Clean up
     setTimeout(() => URL.revokeObjectURL(url), 100);
 
     console.log(`[NotebookLM Exporter] Downloaded: ${filename}`);
@@ -271,13 +804,14 @@
   /**
    * Show success message on button
    */
-  function showSuccessMessage(button) {
-    button.textContent = '✅ Exported!';
-    button.className = 'notebooklm-export-button success';
+  function showSuccessMessage(button, originalText) {
+    button.textContent = '✅ Downloaded!';
+    button.style.background = '#34a853';
+    button.style.opacity = '1';
 
     setTimeout(() => {
-      button.textContent = '📄 Export to Markdown';
-      button.className = 'notebooklm-export-button';
+      button.textContent = originalText;
+      button.style.background = '#1a73e8';
       button.disabled = false;
     }, 2000);
   }
@@ -285,15 +819,18 @@
   /**
    * Show error message on button
    */
-  function showErrorMessage(button, message) {
-    button.textContent = `❌ Error: ${message}`;
-    button.className = 'notebooklm-export-button error';
+  function showErrorMessage(button, message, originalText) {
+    button.textContent = `❌ ${message}`;
+    button.style.background = '#ea4335';
+    button.style.opacity = '1';
+    button.style.fontSize = '12px';
 
     setTimeout(() => {
-      button.textContent = '📄 Export to Markdown';
-      button.className = 'notebooklm-export-button';
+      button.textContent = originalText;
+      button.style.background = '#1a73e8';
+      button.style.fontSize = '14px';
       button.disabled = false;
-    }, 3000);
+    }, 5000);
   }
 
   /**
@@ -301,35 +838,32 @@
    */
   async function main() {
     try {
-      console.log('[NotebookLM Exporter] Initializing...');
+      console.log('[NotebookLM Exporter] Initializing V3...');
 
-      // Wait for chat interface to load
-      const container = await waitForChatContainer();
+      // Wait for toolbars to load
+      const toolbars = await waitForToolbars();
+      console.log('[NotebookLM Exporter] Toolbars found');
 
-      // Inject export button
-      injectExportButton(container);
+      // Inject export buttons
+      injectExportButtons(toolbars);
+
+      // Inject Studio checkboxes (with retry for dynamic content)
+      setTimeout(() => {
+        injectStudioCheckboxes();
+
+        // Re-inject checkboxes when Studio panel changes
+        const studioPanel = document.querySelector(CONFIG.SELECTORS.STUDIO_PANEL);
+        if (studioPanel) {
+          const observer = new MutationObserver(() => {
+            injectStudioCheckboxes();
+          });
+          observer.observe(studioPanel, { childList: true, subtree: true });
+        }
+      }, 1000);
 
       console.log('[NotebookLM Exporter] Ready');
     } catch (error) {
       console.error('[NotebookLM Exporter] Initialization failed:', error);
-
-      // Show error notification
-      const errorDiv = document.createElement('div');
-      errorDiv.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #f44336;
-        color: white;
-        padding: 16px;
-        border-radius: 4px;
-        z-index: 10000;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      `;
-      errorDiv.textContent = `NotebookLM Exporter Error: ${error.message}`;
-      document.body.appendChild(errorDiv);
-
-      setTimeout(() => errorDiv.remove(), 5000);
     }
   }
 
@@ -339,4 +873,5 @@
   } else {
     main();
   }
+
 })();
