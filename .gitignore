@@ -16,3 +16,6 @@ build/
 # Test files
 test/
 *.test.js
+
+# Distribution packages
+*.zip
