@@ -3,9 +3,6 @@
   "name": "NotebookLM Markdown Exporter",
   "version": "1.0.0",
   "description": "Export NotebookLM chat conversations to Markdown format",
-  "permissions": [
-    "activeTab"
-  ],
   "host_permissions": [
     "https://notebooklm.google.com/*"
   ],

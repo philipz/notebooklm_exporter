@@ -105,7 +105,6 @@ notebooklm_exporter/
 ```json
 {
   "manifest_version": 3,
-  "permissions": ["activeTab"],
   "host_permissions": ["https://notebooklm.google.com/*"],
   "content_scripts": [
     {

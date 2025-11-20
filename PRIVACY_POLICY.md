@@ -32,8 +32,7 @@ The Extension:
 
 The Extension requests the following permissions:
 
-- **activeTab**: To access the content of the current NotebookLM tab when you click the export button
-- **host_permissions** for `https://notebooklm.google.com/*`: To run the extension only on NotebookLM pages
+- **host_permissions** for `https://notebooklm.google.com/*`: To run the extension only on NotebookLM pages and access page content for export
 
 These permissions are used exclusively for the export functionality and nothing else.
 

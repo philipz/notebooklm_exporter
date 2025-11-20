@@ -137,8 +137,7 @@ notebooklm_exporter/
 
 The extension requires minimal permissions:
 
-- **activeTab**: Access the current NotebookLM tab
-- **host_permissions**: Run on `https://notebooklm.google.com/*`
+- **host_permissions**: Run on `https://notebooklm.google.com/*` and access page content for export
 
 No data is collected, transmitted, or stored outside your browser.
 
@@ -243,8 +242,9 @@ This project is provided as-is for personal and educational use.
 
 ## Version History
 
-### 1.0.0 (2025-10-26)
+### 1.0.0 (2025-11-20)
 
+- Removed unused activeTab permission for Chrome Web Store compliance
 - Initial release
 - Basic export functionality
 - Markdown conversion with Turndown.js

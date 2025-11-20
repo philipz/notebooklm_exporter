@@ -220,14 +220,9 @@ https://[your-username].github.io/notebooklm_exporter/privacy-policy
 
 當 Chrome Web Store 詢問為何需要某些權限時：
 
-#### `activeTab` permission
-```
-Required to read the conversation content from the current NotebookLM tab when the user clicks the export button. This permission is only used when actively exporting content.
-```
-
 #### `host_permissions` for `https://notebooklm.google.com/*`
 ```
-Required to inject the export button and content script into NotebookLM pages. The extension only runs on NotebookLM and does not access any other websites.
+Required to inject the export button and content script into NotebookLM pages, and to read conversation content when the user clicks export. The extension only runs on NotebookLM and does not access any other websites.
 ```
 
 ## 🚀 上架步驟
