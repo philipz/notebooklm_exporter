@@ -238,7 +238,7 @@ Contributions are welcome! Areas for improvement:
 
 ## License
 
-This project is provided as-is for personal and educational use.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Version History
 
