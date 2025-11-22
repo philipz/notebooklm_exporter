@@ -2,6 +2,8 @@
 
 A Chrome extension that exports NotebookLM chat conversations to Markdown format.
 
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/oielaelencilkmceoanecfnpkjlbjijk?label=Chrome%20Web%20Store)](https://chromewebstore.google.com/detail/notebooklm-markdown-expor/oielaelencilkmceoanecfnpkjlbjijk)
+
 ## Features
 
 - **One-Click Export**: Export entire conversations with a single button click
@@ -34,9 +36,16 @@ A Chrome extension that exports NotebookLM chat conversations to Markdown format
    - You should see "NotebookLM Markdown Exporter" in the list
    - The extension will automatically activate on NotebookLM pages
 
-### Option 2: Chrome Web Store (Future)
+### Option 2: Chrome Web Store (Recommended)
 
-_Once published to the Chrome Web Store, users can install with one click._
+Install directly from the Chrome Web Store:
+
+**[Install NotebookLM Markdown Exporter](https://chromewebstore.google.com/detail/notebooklm-markdown-expor/oielaelencilkmceoanecfnpkjlbjijk)**
+
+1. Click the link above or visit the extension page
+2. Click "Add to Chrome"
+3. Confirm the installation
+4. The extension will automatically activate on NotebookLM pages
 
 ## Usage
 
