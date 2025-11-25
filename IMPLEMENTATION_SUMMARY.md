@@ -163,7 +163,7 @@ try {
 
   showSuccessMessage(button);
 } catch (error) {
-  console.error("[NotebookLM Exporter] Export failed:", error);
+  console.debug("[NotebookLM Exporter] Export failed:", error);
   showErrorMessage(button, error.message);
 }
 ```
