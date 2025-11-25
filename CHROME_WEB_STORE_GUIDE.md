@@ -64,7 +64,9 @@ zip -r notebooklm-exporter-v1.0.0.zip . \
   -x "*.git*" \
   -x "*.md" \
   -x "node_modules/*" \
-  -x ".DS_Store"
+  -x ".DS_Store" \
+  -x "icons/icon1024.png" \
+  -x "LICENSE"
 ```
 
 ### 方法 2：手動選擇檔案

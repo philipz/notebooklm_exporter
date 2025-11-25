@@ -4,6 +4,7 @@
  * Features:
  * - Chat Export: Export entire conversation
  * - Studio Export: Export selected items with checkboxes (one file per item)
+ * - SPA Support: Handles navigation between pages
  */
 
 (function() {
@@ -14,7 +15,7 @@
     TIMEOUT_MS: 10000,
     RETRY_DELAY_MS: 100,
     MAX_RETRIES: 100,
-    CONTENT_LOAD_DELAY_MS: 2000, // Wait for content to load after clicking item (increased to 2s)
+    CONTENT_LOAD_DELAY_MS: 2000, // Wait for content to load after clicking item
     DOWNLOAD_DELAY_MS: 800, // Delay between multiple downloads
     SELECTORS: {
       CHAT_PANEL: '.chat-panel',
@@ -28,28 +29,6 @@
       ASSISTANT_MESSAGE: ['.assistant-message', '[data-role="assistant"]']
     }
   };
-
-  /**
-   * Wait for toolbars to appear in the DOM
-   */
-  async function waitForToolbars() {
-    let attempts = 0;
-
-    while (attempts < CONFIG.MAX_RETRIES) {
-      const chatToolbar = document.querySelector(CONFIG.SELECTORS.CHAT_TOOLBAR);
-      const studioToolbar = document.querySelector(CONFIG.SELECTORS.STUDIO_TOOLBAR);
-
-      if (chatToolbar || studioToolbar) {
-        console.log('[NotebookLM Exporter] Found toolbars');
-        return { chatToolbar, studioToolbar };
-      }
-
-      await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY_MS));
-      attempts++;
-    }
-
-    throw new Error('Toolbars not found');
-  }
 
   /**
    * Create Chat export button
@@ -154,8 +133,9 @@
   /**
    * Inject export buttons into toolbars
    */
-  function injectExportButtons(toolbars) {
-    const { chatToolbar, studioToolbar } = toolbars;
+  function injectExportButtons() {
+    const chatToolbar = document.querySelector(CONFIG.SELECTORS.CHAT_TOOLBAR);
+    const studioToolbar = document.querySelector(CONFIG.SELECTORS.STUDIO_TOOLBAR);
 
     // Inject Chat Export button
     if (chatToolbar && !document.getElementById('notebooklm-export-chat-btn')) {
@@ -178,15 +158,11 @@
   function injectStudioCheckboxes() {
     const studioPanel = document.querySelector(CONFIG.SELECTORS.STUDIO_PANEL);
     if (!studioPanel) {
-      console.log('[NotebookLM Exporter] Studio panel not found');
       return;
     }
 
     const studioItems = studioPanel.querySelectorAll(CONFIG.SELECTORS.STUDIO_ITEMS);
-    console.log(`[NotebookLM Exporter] Found ${studioItems.length} Studio items`);
-
-    let documentItemCount = 0;
-
+    
     studioItems.forEach((item, index) => {
       // Check if radio button already exists
       if (item.previousElementSibling?.classList.contains('studio-export-radio-container')) {
@@ -236,10 +212,7 @@
 
       // Insert before the item button
       item.parentNode.insertBefore(radioContainer, item);
-      documentItemCount++;
     });
-
-    console.log(`[NotebookLM Exporter] Studio radio buttons injected (${documentItemCount} document items)`);
   }
 
   /**
@@ -834,34 +807,64 @@
   }
 
   /**
+   * DOM Observer to handle SPA navigation and dynamic content
+   */
+  class NotebookObserver {
+    constructor() {
+      this.lastUrl = location.href;
+      this.observer = null;
+    }
+
+    start() {
+      console.log('[NotebookLM Exporter] Starting observer...');
+      
+      // Initial injection attempt
+      this.attemptInjection();
+
+      // Watch for DOM changes (navigation, loading, etc.)
+      this.observer = new MutationObserver((mutations) => {
+        // Check for URL change
+        if (location.href !== this.lastUrl) {
+          console.log('[NotebookLM Exporter] URL changed:', location.href);
+          this.lastUrl = location.href;
+          this.attemptInjection();
+        }
+
+        // Check for relevant DOM additions
+        let shouldInject = false;
+        for (const mutation of mutations) {
+          if (mutation.addedNodes.length > 0) {
+            shouldInject = true;
+            break;
+          }
+        }
+
+        if (shouldInject) {
+          this.attemptInjection();
+        }
+      });
+
+      this.observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+    }
+
+    attemptInjection() {
+      // Try to inject buttons if toolbars are present
+      injectExportButtons();
+      injectStudioCheckboxes();
+    }
+  }
+
+  /**
    * Main entry point
    */
-  async function main() {
+  function main() {
     try {
-      console.log('[NotebookLM Exporter] Initializing V3...');
-
-      // Wait for toolbars to load
-      const toolbars = await waitForToolbars();
-      console.log('[NotebookLM Exporter] Toolbars found');
-
-      // Inject export buttons
-      injectExportButtons(toolbars);
-
-      // Inject Studio checkboxes (with retry for dynamic content)
-      setTimeout(() => {
-        injectStudioCheckboxes();
-
-        // Re-inject checkboxes when Studio panel changes
-        const studioPanel = document.querySelector(CONFIG.SELECTORS.STUDIO_PANEL);
-        if (studioPanel) {
-          const observer = new MutationObserver(() => {
-            injectStudioCheckboxes();
-          });
-          observer.observe(studioPanel, { childList: true, subtree: true });
-        }
-      }, 1000);
-
-      console.log('[NotebookLM Exporter] Ready');
+      console.log('[NotebookLM Exporter] Initializing V3 (SPA Support)...');
+      const observer = new NotebookObserver();
+      observer.start();
     } catch (error) {
       console.error('[NotebookLM Exporter] Initialization failed:', error);
     }
