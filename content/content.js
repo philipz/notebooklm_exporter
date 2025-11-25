@@ -7,7 +7,7 @@
  * - SPA Support: Handles navigation between pages
  */
 
-(function() {
+(function () {
   'use strict';
 
   // Configuration
@@ -53,7 +53,7 @@
 
         showSuccessMessage(button, text);
       } catch (error) {
-        console.error('[NotebookLM Exporter] Chat export failed:', error);
+        console.debug('[NotebookLM Exporter] Chat export failed:', error);
         showErrorMessage(button, error.message, text);
       }
     });
@@ -76,7 +76,6 @@
         await exportStudioItems(button, text);
 
       } catch (error) {
-        console.error('[NotebookLM Exporter] Studio export failed:', error);
         showErrorMessage(button, error.message, text);
       }
     });
@@ -162,7 +161,7 @@
     }
 
     const studioItems = studioPanel.querySelectorAll(CONFIG.SELECTORS.STUDIO_ITEMS);
-    
+
     studioItems.forEach((item, index) => {
       // Check if radio button already exists
       if (item.previousElementSibling?.classList.contains('studio-export-radio-container')) {
@@ -295,7 +294,7 @@
       showSuccessMessage(button, originalText);
 
     } catch (error) {
-      console.error(`[NotebookLM Exporter] Export failed:`, error);
+      console.debug(`[NotebookLM Exporter] Export failed:`, error);
       // Try to navigate back even on error
       try {
         await navigateBackToStudioList(studioPanel);
@@ -813,11 +812,12 @@
     constructor() {
       this.lastUrl = location.href;
       this.observer = null;
+      this.persistenceInterval = null;
     }
 
     start() {
       console.log('[NotebookLM Exporter] Starting observer...');
-      
+
       // Initial injection attempt
       this.attemptInjection();
 
@@ -848,6 +848,12 @@
         childList: true,
         subtree: true
       });
+
+      // Persistence check: Ensure buttons stay in the DOM
+      // This handles cases where the framework removes our buttons after injection
+      this.persistenceInterval = setInterval(() => {
+        this.attemptInjection();
+      }, 1000);
     }
 
     attemptInjection() {
@@ -866,7 +872,7 @@
       const observer = new NotebookObserver();
       observer.start();
     } catch (error) {
-      console.error('[NotebookLM Exporter] Initialization failed:', error);
+      console.debug('[NotebookLM Exporter] Initialization failed:', error);
     }
   }
 
