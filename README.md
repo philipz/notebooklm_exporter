@@ -4,6 +4,10 @@ A Chrome extension that exports NotebookLM chat conversations to Markdown format
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/oielaelencilkmceoanecfnpkjlbjijk?label=Chrome%20Web%20Store)](https://chromewebstore.google.com/detail/notebooklm-markdown-expor/oielaelencilkmceoanecfnpkjlbjijk)
 
+## ☕ Support This Project
+
+<a href="https://buymeacoffee.com/philipz" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+
 ## Features
 
 - **One-Click Export**: Export entire conversations with a single button click
