@@ -22,7 +22,7 @@
       CHAT_TOOLBAR: '.chat-panel .panel-header .chat-header-buttons',
       STUDIO_PANEL: '.studio-panel',
       STUDIO_TOOLBAR: '.studio-panel .panel-header',
-      STUDIO_ITEMS: '.mat-mdc-button.artifact-button-content',
+      STUDIO_ITEMS: 'artifact-library-note',
       MESSAGE_CONTAINER: ['.messages', '.conversation', '[role="log"]'],
       MESSAGE_ITEM: ['[data-message-id]', '.message', '.chat-message'],
       USER_MESSAGE: ['.user-message', '[data-role="user"]'],
@@ -160,21 +160,18 @@
       return;
     }
 
-    const studioItems = studioPanel.querySelectorAll(CONFIG.SELECTORS.STUDIO_ITEMS);
+    // Select artifact-library-note elements which contain both the button and the content
+    const noteElements = studioPanel.querySelectorAll(CONFIG.SELECTORS.STUDIO_ITEMS);
 
-    studioItems.forEach((item, index) => {
-      // Check if radio button already exists
-      if (item.previousElementSibling?.classList.contains('studio-export-radio-container')) {
+    noteElements.forEach((noteElement, index) => {
+      // Check if radio button already exists inside this note element
+      if (noteElement.querySelector('.studio-export-radio-container')) {
         return;
       }
 
-      // Filter: Only add radio to document items (Reports, Flashcards, Quiz)
-      // Exclude: Audio Overview, Video Overview, Mind Map (creation buttons)
-      const icon = item.querySelector('mat-icon');
-      const iconText = icon?.textContent?.trim();
-
-      // Only add radio to document items (sticky_note_2 icon)
-      if (iconText !== 'sticky_note_2') {
+      // Filter: Only add radio to document items that contain sticky_note_2 icon
+      // The icon text is inside div.artifact-primary-content, which is a child of the note element
+      if (!noteElement.textContent || !noteElement.textContent.includes('sticky_note_2')) {
         return;
       }
 
@@ -203,14 +200,18 @@
       });
 
       // Auto-select when user clicks the item
-      item.addEventListener('click', () => {
+      noteElement.addEventListener('click', () => {
         radio.checked = true;
       });
 
-      radioContainer.appendChild(radio);
+      // Insert inside the note element, as the first child
+      // Make the note element a flex container to align items horizontally
+      noteElement.style.display = 'flex';
+      noteElement.style.flexDirection = 'row';
+      noteElement.style.alignItems = 'center';
 
-      // Insert before the item button
-      item.parentNode.insertBefore(radioContainer, item);
+      radioContainer.appendChild(radio);
+      noteElement.insertBefore(radioContainer, noteElement.firstChild);
     });
   }
 
@@ -233,18 +234,21 @@
     try {
       button.textContent = '⏳ Exporting...';
 
-      // Get the item button next to the radio
-      const itemButton = selectedRadio.parentElement.nextElementSibling;
+      // Get the artifact-library-note element containing the radio
+      const noteElement = selectedRadio.closest('artifact-library-note');
 
-      if (!itemButton) {
-        throw new Error('Item button not found');
+      if (!noteElement) {
+        throw new Error('Note element not found');
       }
 
-      // Extract title from item button using .artifact-title selector
-      const titleElement = itemButton.querySelector('.artifact-title');
+      // Extract title from note element using .artifact-title selector
+      const titleElement = noteElement.querySelector('.artifact-title');
       const title = titleElement ? titleElement.textContent.trim() : 'Studio-Item';
 
       console.log(`[NotebookLM Exporter] Exporting: "${title}"`);
+
+      // Find the clickable button inside the note element
+      const itemButton = noteElement.querySelector('button.artifact-stretched-button') || noteElement.querySelector('button');
 
       // Check if we're already viewing the Note content
       let docViewer = studioPanel.querySelector('labs-tailwind-doc-viewer');
@@ -255,7 +259,11 @@
         button.textContent = '⏳ Opening Note...';
 
         // Click the item button to open the Note
-        itemButton.click();
+        if (itemButton) {
+          itemButton.click();
+        } else {
+          noteElement.click();
+        }
 
         // Wait for content to load
         await waitForNoteContent(studioPanel, CONFIG.CONTENT_LOAD_DELAY_MS);

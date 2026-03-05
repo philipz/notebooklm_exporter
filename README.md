@@ -255,6 +255,18 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Version History
 
+### 1.0.2 (2026-03-05)
+
+- Fixed Studio export radio buttons not appearing due to NotebookLM UI layout changes
+- Updated `STUDIO_ITEMS` selector from `.mat-mdc-button.artifact-button-content` to `button.artifact-stretched-button`
+- Improved robustness of document item detection using `textContent.includes()` instead of strict icon element matching
+
+### 1.0.1 (2025-11-21)
+
+- Added Studio Export feature with radio button selection for Notes
+- Single-selection export for Studio items (Reports, Flashcards, Quiz)
+- Auto-navigation back to Studio list after export
+
 ### 1.0.0 (2025-11-20)
 
 - Removed unused activeTab permission for Chrome Web Store compliance
