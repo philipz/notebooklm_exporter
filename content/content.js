@@ -22,7 +22,9 @@
       CHAT_TOOLBAR: '.chat-panel .panel-header .chat-header-buttons',
       STUDIO_PANEL: '.studio-panel',
       STUDIO_TOOLBAR: '.studio-panel .panel-header',
-      STUDIO_ITEMS: 'artifact-library-note',
+      STUDIO_ITEMS: 'artifact-library-note, artifact-library-item',
+      // Content viewer: old UI used labs-tailwind-doc-viewer, new UI uses text-content-viewer
+      DOC_VIEWER: 'labs-tailwind-doc-viewer, text-content-viewer',
       MESSAGE_CONTAINER: ['.messages', '.conversation', '[role="log"]'],
       MESSAGE_ITEM: ['[data-message-id]', '.message', '.chat-message'],
       USER_MESSAGE: ['.user-message', '[data-role="user"]'],
@@ -169,9 +171,12 @@
         return;
       }
 
-      // Filter: Only add radio to document items that contain sticky_note_2 icon
-      // The icon text is inside div.artifact-primary-content, which is a child of the note element
-      if (!noteElement.textContent || !noteElement.textContent.includes('sticky_note_2')) {
+      // Filter: skip non-document artifacts (Audio/Video Overview, Mind Map)
+      // which cannot be exported as markdown; documents like Notes and
+      // Reports pass through regardless of their icon
+      const nonDocIcons = ['audio_magic_eraser', 'subscriptions', 'flowchart'];
+      const itemText = noteElement.textContent || '';
+      if (nonDocIcons.some(icon => itemText.includes(icon))) {
         return;
       }
 
@@ -182,7 +187,11 @@
         display: 'inline-flex',
         alignItems: 'center',
         marginRight: '8px',
-        verticalAlign: 'middle'
+        verticalAlign: 'middle',
+        // Lift above the full-card overlay (button.artifact-stretched-button)
+        // so clicks reach the radio instead of the card button
+        position: 'relative',
+        zIndex: '10'
       });
 
       // Create radio button (single selection)
@@ -197,6 +206,12 @@
         height: '18px',
         cursor: 'pointer',
         accentColor: '#1a73e8'
+      });
+
+      // Keep radio clicks from bubbling to the card, which would
+      // trigger NotebookLM's navigation into the note view
+      radio.addEventListener('click', (event) => {
+        event.stopPropagation();
       });
 
       // Auto-select when user clicks the item
@@ -234,8 +249,8 @@
     try {
       button.textContent = '⏳ Exporting...';
 
-      // Get the artifact-library-note element containing the radio
-      const noteElement = selectedRadio.closest('artifact-library-note');
+      // Get the library item element containing the radio
+      const noteElement = selectedRadio.closest('artifact-library-note, artifact-library-item');
 
       if (!noteElement) {
         throw new Error('Note element not found');
@@ -247,11 +262,15 @@
 
       console.log(`[NotebookLM Exporter] Exporting: "${title}"`);
 
-      // Find the clickable button inside the note element
-      const itemButton = noteElement.querySelector('button.artifact-stretched-button') || noteElement.querySelector('button');
+      // Find the clickable element inside the note element
+      // New UI uses div.artifact-item-button as the click target; a bare
+      // 'button' query would hit the mat-menu (three-dot) trigger instead
+      const itemButton = noteElement.querySelector('button.artifact-stretched-button')
+        || noteElement.querySelector('.artifact-item-button')
+        || noteElement.querySelector('button');
 
       // Check if we're already viewing the Note content
-      let docViewer = studioPanel.querySelector('labs-tailwind-doc-viewer');
+      let docViewer = studioPanel.querySelector(CONFIG.SELECTORS.DOC_VIEWER);
 
       if (!docViewer) {
         // We're on the list page, need to click into the Note
@@ -269,7 +288,7 @@
         await waitForNoteContent(studioPanel, CONFIG.CONTENT_LOAD_DELAY_MS);
 
         // Try to find the doc viewer again
-        docViewer = studioPanel.querySelector('labs-tailwind-doc-viewer');
+        docViewer = studioPanel.querySelector(CONFIG.SELECTORS.DOC_VIEWER);
 
         if (!docViewer) {
           throw new Error('Failed to load Note content. Please try opening the Note manually first.');
@@ -321,7 +340,7 @@
     const checkInterval = 100; // Check every 100ms
 
     while (Date.now() - startTime < maxWaitMs) {
-      const docViewer = studioPanel.querySelector('labs-tailwind-doc-viewer');
+      const docViewer = studioPanel.querySelector(CONFIG.SELECTORS.DOC_VIEWER);
       if (docViewer && docViewer.textContent?.trim().length > 100) {
         console.log(`[NotebookLM Exporter] Note content loaded (${Date.now() - startTime}ms)`);
         return;
@@ -403,7 +422,7 @@
 
     // Primary selector: labs-tailwind-doc-viewer (the actual content viewer)
     // This contains the clean article content without UI controls
-    const docViewer = studioPanel.querySelector('labs-tailwind-doc-viewer');
+    const docViewer = studioPanel.querySelector(CONFIG.SELECTORS.DOC_VIEWER);
 
     if (docViewer) {
       const textContent = docViewer.textContent?.trim();
@@ -418,7 +437,7 @@
     const noteForm = studioPanel.querySelector('note-editor form');
     if (noteForm) {
       // Try to find doc-viewer inside the form
-      const innerDocViewer = noteForm.querySelector('labs-tailwind-doc-viewer');
+      const innerDocViewer = noteForm.querySelector(CONFIG.SELECTORS.DOC_VIEWER);
       if (innerDocViewer) {
         console.log(`[NotebookLM Exporter] Using doc-viewer from note-editor form`);
         return innerDocViewer.cloneNode(true);
