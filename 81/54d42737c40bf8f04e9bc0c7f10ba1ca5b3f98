@@ -1,0 +1,26 @@
+content/content.js
+  s_e2a1f32a48920a::t_1323c0f8d367b0 211-216
+  s_e2a1f32a48920a::t_cf7f21ef3e89b8 273,291,343,425,440
+  s_e2a1f32a48920a::t_fdda23d09f1018 252-253
+  s_e2a1f32a48920a::t_5d6bfe4e43d3f0 26-27
+  s_e2a1f32a48920a::t_4245cf8e35c70b 174-179
+  s_e2a1f32a48920a::t_38f6b25f37759d 25
+  s_e2a1f32a48920a::t_467f02c35ad613 190-194
+  s_e2a1f32a48920a::t_da15bbf1dd57cf 265-270
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8154d42737c40bf8f04e9bc0c7f10ba1ca5b3f98",
+  "prompts": {},
+  "sessions": {
+    "s_e2a1f32a48920a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0277e0ae-e22b-4b81-891a-66c80db13bbe",
+        "model": "claude-fable-5"
+      },
+      "human_author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
