@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
   "name": "NotebookLM Markdown Exporter",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Export NotebookLM chat conversations to Markdown format",
   "host_permissions": [
-    "https://notebooklm.google.com/*"
+    "https://notebook.google.com/*"
   ],
   "content_scripts": [
     {
       "matches": [
-        "https://notebooklm.google.com/*"
+        "https://notebook.google.com/*"
       ],
       "js": [
         "lib/turndown.min.js",
