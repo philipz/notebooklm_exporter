@@ -18,17 +18,17 @@
     CONTENT_LOAD_DELAY_MS: 2000, // Wait for content to load after clicking item
     DOWNLOAD_DELAY_MS: 800, // Delay between multiple downloads
     SELECTORS: {
-      CHAT_PANEL: '.chat-panel',
-      CHAT_TOOLBAR: '.chat-panel .panel-header .chat-header-buttons',
+      CHAT_PANEL: '.chat-panel, chat-panel',
+      CHAT_TOOLBAR: 'chat-panel-header, .chat-panel-header, .chat-panel .panel-header .chat-header-buttons, .chat-panel .panel-header',
       STUDIO_PANEL: '.studio-panel',
       STUDIO_TOOLBAR: '.studio-panel .panel-header',
       STUDIO_ITEMS: 'artifact-library-note, artifact-library-item',
       // Content viewer: old UI used labs-tailwind-doc-viewer, new UI uses text-content-viewer
       DOC_VIEWER: 'labs-tailwind-doc-viewer, text-content-viewer',
-      MESSAGE_CONTAINER: ['.messages', '.conversation', '[role="log"]'],
-      MESSAGE_ITEM: ['[data-message-id]', '.message', '.chat-message'],
-      USER_MESSAGE: ['.user-message', '[data-role="user"]'],
-      ASSISTANT_MESSAGE: ['.assistant-message', '[data-role="assistant"]']
+      MESSAGE_CONTAINER: ['.chat-panel-content', '.chat-panel', 'chat-panel', '.message-container', '.messages', '.conversation', '[role="log"]'],
+      MESSAGE_ITEM: ['chat-message', '.individual-message', '[data-message-id]', '.message', '.chat-message'],
+      USER_MESSAGE: ['.from-user-container', '[class*="from-user"]', '.user-message', '[data-role="user"]'],
+      ASSISTANT_MESSAGE: ['.to-user-container', '[class*="to-user"]', '.assistant-message', '[data-role="assistant"]']
     }
   };
 
@@ -41,7 +41,7 @@
     button.addEventListener('click', async () => {
       try {
         button.disabled = true;
-        button.textContent = '⏳ Exporting...';
+        button.textContent = 'Exporting...';
         button.style.opacity = '0.7';
 
         const messages = extractChatMessages();
@@ -72,7 +72,7 @@
     button.addEventListener('click', async () => {
       try {
         button.disabled = true;
-        button.textContent = '⏳ Exporting...';
+        button.textContent = 'Exporting...';
         button.style.opacity = '0.7';
 
         await exportStudioItems(button, text);
@@ -110,7 +110,8 @@
       cursor: 'pointer',
       boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
       transition: 'all 0.2s ease',
-      whiteSpace: 'nowrap'
+      whiteSpace: 'nowrap',
+      verticalAlign: 'middle'
     });
 
     // Hover effect
@@ -132,20 +133,68 @@
   }
 
   /**
+   * Find injection target for Chat Export button
+   * Priority: Left side of "Create notebook" button in top toolbar
+   */
+  function findChatExportTarget() {
+    // 1. Check for "Create notebook" button
+    const createNotebookBtn = document.querySelector('nb-button.create-notebook-button')
+      || document.querySelector('button[aria-label="Create notebook"]')
+      || document.querySelector('button[aria-label="新筆記本"]')
+      || document.querySelector('button[aria-label="新增筆記本"]')
+      || Array.from(document.querySelectorAll('button')).find(b => {
+          const txt = (b.textContent || '').trim();
+          const lbl = b.getAttribute('aria-label') || '';
+          return txt.includes('Create notebook') || lbl.includes('Create notebook');
+        });
+
+    if (createNotebookBtn) {
+      const targetElement = createNotebookBtn.closest('nb-button') || createNotebookBtn;
+      if (targetElement && targetElement.parentElement) {
+        return {
+          type: 'before',
+          parent: targetElement.parentElement,
+          referenceNode: targetElement
+        };
+      }
+    }
+
+    // 2. Fallback to chat header or toolbar
+    const chatToolbar = document.querySelector(CONFIG.SELECTORS.CHAT_TOOLBAR);
+    if (chatToolbar) {
+      return {
+        type: 'append',
+        parent: chatToolbar,
+        referenceNode: null
+      };
+    }
+
+    return null;
+  }
+
+  /**
    * Inject export buttons into toolbars
    */
   function injectExportButtons() {
-    const chatToolbar = document.querySelector(CONFIG.SELECTORS.CHAT_TOOLBAR);
-    const studioToolbar = document.querySelector(CONFIG.SELECTORS.STUDIO_TOOLBAR);
-
     // Inject Chat Export button
-    if (chatToolbar && !document.getElementById('notebooklm-export-chat-btn')) {
-      const chatButton = createChatExportButton('notebooklm-export-chat-btn', 'Export');
-      chatToolbar.appendChild(chatButton);
-      console.log('[NotebookLM Exporter] Chat Export button injected');
+    if (!document.getElementById('notebooklm-export-chat-btn')) {
+      const target = findChatExportTarget();
+      if (target) {
+        const chatButton = createChatExportButton('notebooklm-export-chat-btn', 'Export');
+        chatButton.style.marginRight = '8px';
+        chatButton.style.marginLeft = '8px';
+
+        if (target.type === 'before' && target.referenceNode) {
+          target.parent.insertBefore(chatButton, target.referenceNode);
+        } else {
+          target.parent.appendChild(chatButton);
+        }
+        console.log('[NotebookLM Exporter] Chat Export button injected');
+      }
     }
 
     // Inject Studio Export button
+    const studioToolbar = document.querySelector(CONFIG.SELECTORS.STUDIO_TOOLBAR);
     if (studioToolbar && !document.getElementById('notebooklm-export-studio-btn')) {
       const studioButton = createStudioExportButton('notebooklm-export-studio-btn', 'Export');
       studioToolbar.appendChild(studioButton);
@@ -247,7 +296,7 @@
     }
 
     try {
-      button.textContent = '⏳ Exporting...';
+      button.textContent = 'Exporting...';
 
       // Get the library item element containing the radio
       const noteElement = selectedRadio.closest('artifact-library-note, artifact-library-item');
@@ -275,7 +324,7 @@
       if (!docViewer) {
         // We're on the list page, need to click into the Note
         console.log(`[NotebookLM Exporter] Opening Note: "${title}"`);
-        button.textContent = '⏳ Opening Note...';
+        button.textContent = 'Opening Note...';
 
         // Click the item button to open the Note
         if (itemButton) {
@@ -295,7 +344,7 @@
         }
       }
 
-      button.textContent = '⏳ Extracting content...';
+      button.textContent = 'Extracting content...';
 
       // Extract content
       const content = extractStudioItemContent();
@@ -533,29 +582,31 @@
       return messages;
     }
 
-    // Try to find message container
-    let messageContainer = chatPanel;
-    for (const selector of CONFIG.SELECTORS.MESSAGE_CONTAINER) {
-      const found = chatPanel.querySelector(selector);
-      if (found) {
-        messageContainer = found;
-        break;
-      }
-    }
-
     // Try to find individual messages
     let messageElements = [];
     for (const selector of CONFIG.SELECTORS.MESSAGE_ITEM) {
-      messageElements = Array.from(messageContainer.querySelectorAll(selector));
+      messageElements = Array.from(chatPanel.querySelectorAll(selector));
       if (messageElements.length > 0) {
         console.log(`[NotebookLM Exporter] Found ${messageElements.length} messages with selector: ${selector}`);
         break;
       }
     }
 
-    // If no messages found, try generic approach
+    // Fallback 1: If no messages found, check for notebook summary in empty state
     if (messageElements.length === 0) {
-      const allDivs = Array.from(messageContainer.querySelectorAll('div'));
+      const summaryContent = chatPanel.querySelector('.chat-panel-empty-state .summary-content, .notebook-summary');
+      if (summaryContent && summaryContent.textContent.trim().length > 10) {
+        console.log('[NotebookLM Exporter] Found notebook summary in empty state');
+        return [{
+          role: 'assistant',
+          content: cleanChatMessageContent(summaryContent)
+        }];
+      }
+    }
+
+    // Fallback 2: Generic approach
+    if (messageElements.length === 0) {
+      const allDivs = Array.from(chatPanel.querySelectorAll('div'));
       messageElements = allDivs.filter(div => {
         const text = div.textContent?.trim();
         return text && text.length > 10 && div.children.length > 0;
@@ -580,7 +631,8 @@
         return;
       }
 
-      let role = 'assistant';
+      // Identify role
+      let role = null;
       for (const selector of CONFIG.SELECTORS.USER_MESSAGE) {
         if (element.matches(selector) || element.querySelector(selector)) {
           role = 'user';
@@ -588,22 +640,34 @@
         }
       }
 
+      if (!role) {
+        for (const selector of CONFIG.SELECTORS.ASSISTANT_MESSAGE) {
+          if (element.matches(selector) || element.querySelector(selector)) {
+            role = 'assistant';
+            break;
+          }
+        }
+      }
+
       // Fallback: alternate based on position
-      if (messages.length === 0 && role === 'assistant') {
-        role = 'user';
-      } else if (messages.length > 0) {
-        const lastRole = messages[messages.length - 1].role;
-        if (role === lastRole) {
+      if (!role) {
+        if (messages.length === 0) {
+          role = 'user';
+        } else {
+          const lastRole = messages[messages.length - 1].role;
           role = lastRole === 'user' ? 'assistant' : 'user';
         }
       }
 
+      // Extract inner content node if available
+      const contentNode = element.querySelector('.message-text-content, labs-tailwind-doc-viewer, .message-content') || element;
+
       // Clone and clean the message content
-      const cleanedContent = cleanChatMessageContent(element);
+      const cleanedContent = cleanChatMessageContent(contentNode);
       const contentText = cleanedContent.textContent?.trim();
 
       // Skip if content is too short or already seen
-      if (!contentText || contentText.length < 10) {
+      if (!contentText || contentText.length < 5) {
         return;
       }
 
@@ -656,7 +720,10 @@
       '.follow-up-chip',             // Individual follow-up question chips
       '.omnibar-container',          // Omnibar container
       '.query-box-container',        // Query box container
-      'textarea[placeholder*="typing"]'  // Query input textarea
+      'textarea[placeholder*="typing"]', // Query input textarea
+      '.thought-display',            // Thought display container
+      '.thinking-process',           // Thinking process
+      'mat-expansion-panel-header'   // Thought collapsible header
     ];
 
     uiSelectors.forEach(selector => {
@@ -689,6 +756,9 @@
       /^Video Overview$/,
       /^Audio Overview$/,
       /^flowchart$/,
+      /^Thoughts$/,
+      /^expand_more$/,
+      /^expand_less$/,
       /^Mind Map$/,
       /^arrow_forward$/,
       /^keyboard_arrow_down$/,
@@ -804,7 +874,7 @@
    * Show success message on button
    */
   function showSuccessMessage(button, originalText) {
-    button.textContent = '✅ Downloaded!';
+    button.textContent = 'Downloaded!';
     button.style.background = '#34a853';
     button.style.opacity = '1';
 
@@ -819,7 +889,7 @@
    * Show error message on button
    */
   function showErrorMessage(button, message, originalText) {
-    button.textContent = `❌ ${message}`;
+    button.textContent = message.startsWith('Error:') ? message : `Error: ${message}`;
     button.style.background = '#ea4335';
     button.style.opacity = '1';
     button.style.fontSize = '12px';
